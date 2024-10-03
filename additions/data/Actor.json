@@ -1,0 +1,31 @@
+{
+  "actors": {
+      "COMBAT Unit Blue Baby" : {
+          "parent": "_COMBAT Unit Mob",
+          "unitActor": {
+              "resource": {
+                  "name": "blue_baby_txt"
+              },
+              "modelScale": 0.5
+          }
+      },
+      "COMBAT Missile Poo Cupcake": {
+          "parent": "_COMBAT Missile Simple",
+          "unitActor": {
+              "resource": {
+                  "name": "poo_cupcake"
+              },
+              "modelScale": 0.4
+          }
+      },
+      "COMBAT Missile Big Vampire": {
+          "parent": "_COMBAT Missile Simple",
+          "unitActor": {
+              "resource": {
+                  "name": "big_vampire"
+              },
+              "modelScale": 0.2
+          }
+      }
+  }
+}

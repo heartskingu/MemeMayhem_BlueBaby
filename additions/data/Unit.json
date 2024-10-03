@@ -1,0 +1,14 @@
+{
+  "units": {
+      "COMBAT Unit Blue Baby":
+      {
+          "baseUnit": "_COMBAT Missile"
+      },
+      "COMBAT Missile Poo Cupcake": {
+          "baseUnit": "_COMBAT Missile"
+      },
+      "COMBAT Missile Big Vampire": {
+          "baseUnit": "_COMBAT Missile"
+      }
+  }
+}

@@ -1,0 +1,319 @@
+is_first_combat = true
+last_current_health = 0
+
+local TAG_POO_CUPCAKE = "<size=280%><sprite name=poo_cupcake></size>"
+
+local localization = {
+  ["English"] = {
+    ["missile/big_vampire/tip"] = "Steal <color=green>{[x]}</color> health",
+    ["missile/poo_cupcake/tip"] = "Target self\nGain <color=green>+{[x]}</color> health regeneration",
+    ["relic/black_heart/display_name"] = "Black Heart",
+    ["relic/black_heart/description"] = "Every <color=red>600</color> damage taken: Deal <color=green>400</color> damage to the enemy",
+    ["relic/black_heart/flavor"] = "Evil Up",
+    ["relic/soy_milk/display_name"] = "Soy Milk",
+    ["relic/soy_milk/description"] = "Gain <color=green>300%</color> {[x]}\n{[y]} and {[z]} reduced by <color=red>90%</color>",
+    ["relic/soy_milk/flavor"] = "Lactose intolerance?",
+    ["relic/soul_heart/display_name"] = "Soul Heart",
+    ["relic/soul_heart/description"] = "Increase {[y]} by {[x]} times, but lose after battle regen",
+    ["relic/soul_heart/flavor"] = "Balls of steel",
+    ["relic/poo_poison_relic/display_name"] = "Poo Poison",
+    ["relic/poo_poison_relic/description"] = "{[z]} applies <color=green>{[x]}</color> {[y]}\nEvery {[y]} decreases <color=green>1</color> health and <color=green>1</color> energy per second",
+    ["relic/poo_poison_relic/flavor"] = "Isn't it tasty?",
+  }
+}
+
+local localization_table = localization["English"]
+
+local function ReplaceTextMarks(text, marks)
+    for mark, replacement in pairs(marks) do
+        text = string.gsub(text, "%{%[" .. mark .. "%]%}", replacement)
+    end
+    return text
+end
+  
+local function AddNewAttribute(Api)
+      Api:RegisterAttribute({
+          id = "attr_poo_cake_bonus",
+          display_name = "Poo Cake Bonus",
+          description = "Increase Poo Cupcake healing",
+          icon = DCEI.Texture("poo_cake"),
+          display_type = Api.DisplayType.Integer,
+          is_neutral = true, -- if true, font color will always be white
+          display_requirements = {
+              is_hero = true, -- only show for hero
+              perk = "poo_cake", -- only show if has this perk
+            default_value = 0,
+        },
+    })
+end
+
+local function AddNewMissile(Api)
+    Api:RegisterMissile("poo_cupcake", {
+        id = "poo_cupcake",
+        display_name = "Poo Cupcake",
+        tip = ReplaceTextMarks(localization_table["missile/poo_cupcake/tip"], {
+            x = 1,
+        }),
+        icon = DCEI.Texture("poo_cupcake"),
+        missile = DCEI.SimpleUnit("COMBAT Missile Poo Cupcake"),
+        target_self = true,
+        flight_time = 0.75,
+    })
+
+    Api:SetMissileImpact("poo_cupcake", function(attack_data, caster_data, target_data)
+        local heal_amount = 1 + caster_data:GetBoundedAttribute("attr_poo_cake_bonus")
+        target_data:ModifyAttribute("health_per_second", heal_amount, false)
+    end)
+    --[[Api:RegisterMissile("big_vampire", {
+        id = "big_vampire",
+        display_name = "Big Vampire",
+        tip = ReplaceTextMarks(localization_table["missile/big_vampire/tip"], {
+            x = 10,
+        }),
+        icon = DCEI.Texture("big_vampire"),
+        missile = DCEI.SimpleUnit("COMBAT Missile Big Vampire"),
+        flight_time = 0.75,
+    })
+    Api:SetMissileImpact("big_vampire", function(attack_data, caster_data, target_data)
+        caster_data:ModifyAttribute("health_maximum", 10, false)
+        target_data:ModifyAttribute("health_maximum", -10, false)
+        caster_data.run_instance:ModifySavedPerkDataAttributes("health_maximum", 10)
+    end)]]--
+end
+
+local function AddNewPerk(Api)
+    Api:RegisterPerk("poo_cupcake_perk", {
+        id = "poo_cupcake_perk",
+        display_name = "Poo Cupcake",
+        description = "Get" .. TAG_POO_CUPCAKE,
+        icon = DCEI.Texture("poo_cupcake"),
+        perk_type = "missile",
+        rarity = "common",
+        attacks = {
+            poo_cupcake = 1,
+        },
+    })
+
+    Api:RegisterPerk("poo_party", {
+        id = "poo_party",
+        display_name = "Poo Party",
+        description = "Get <color=#47B05D>+3</color>" .. TAG_POO_CUPCAKE,
+        icon = DCEI.Texture("poo_party"),
+        perk_type = "missile",
+        rarity = "rare",
+        attacks = {
+            poo_cupcake = 3,
+        },
+    })
+
+    Api:RegisterPerk("poo_cake", {
+        id = "poo_cake",
+        display_name = "Poo Cake!",
+        description = "Increase " .. TAG_POO_CUPCAKE .. " heal by <color=#47B05D>1</color>",
+        icon = DCEI.Texture("poo_cake"),
+        perk_type = "perk",
+        rarity = "epic",
+        modify_attributes = {
+            attr_poo_cake_bonus = 1,
+        },
+    })
+end
+
+local function AddNewRelic(Api)
+    local black_heart_relic = {
+        id = "black_heart",
+        display_name = localization_table["relic/black_heart/display_name"],
+        description = localization_table["relic/black_heart/description"],
+        flavor_text = localization_table["relic/black_heart/flavor"],
+        icon = DCEI.Texture("black_heart"),
+        rarity = "epic",
+    }
+    Api:RegisterRelic(black_heart_relic.id, black_heart_relic, function(combat_unit)
+        local name = black_heart_relic.id
+        local damage_taken = 0
+        local damage_cap = 600
+        local deal_damage_amount = 400
+        combat_unit:RegisterOnDamageTakenCallback(name, function(level, damage_amount, caster, target)
+            damage_taken = damage_taken + damage_amount
+            if damage_taken >= damage_cap then
+                local deal_calc = math.floor(damage_taken / damage_cap) * deal_damage_amount
+                caster:Damage(deal_calc, target, {})
+                caster:Shake(1, true)
+                damage_taken = damage_taken - (math.floor(damage_taken / damage_cap) * damage_cap)
+            end
+        end)
+    end)
+
+    local poo_poison_relic = {
+        id = "isaac_poo_poison_relic",
+        display_name = localization_table["relic/poo_poison_relic/display_name"],
+        description = ReplaceTextMarks(localization_table["relic/poo_poison_relic/description"], {
+            x = 1,
+            y = Api.GameMechanicTags.TAG.poison,
+            z = Api.GameMechanicTags.ATTACK_ICON.poo,
+        }),
+        flavor_text = localization_table["relic/poo_poison_relic/flavor"],
+        icon = DCEI.Texture("smh_poison_poo"),
+        rarity = "permanent",
+    }
+    Api:RegisterRelic(poo_poison_relic.id, poo_poison_relic, function(combat_unit)
+        local name = poo_poison_relic.id
+        
+        combat_unit.Attack:RegisterOnMissileImpactCallback(name, function(level, attack_data, caster, target)
+            if not target:IsHero() and attack_data.missile_id == "attack_poo" then
+                Api.PerkMechanics:ApplyPoison(caster, target, 1)
+            end
+        end)
+    end)
+
+    local soy_milk_relic = {
+        id = "soy_milk",
+        display_name = localization_table["relic/soy_milk/display_name"],
+        description = ReplaceTextMarks(localization_table["relic/soy_milk/description"], {
+          x = Api.GameMechanicTags.TAG.attack_speed,
+          y = Api.GameMechanicTags.TAG.attack,
+          z = Api.GameMechanicTags.TAG.energy_regen
+        }),
+        flavor_text = localization_table["relic/soy_milk/flavor"],
+        icon = DCEI.Texture("soy_milk"),
+        rarity = "legendary",
+        modify_attributes = {
+            attack_speed = 3
+        }
+    }
+    Api:RegisterRelic(soy_milk_relic.id, soy_milk_relic, function(combat_unit)
+        local name = soy_milk_relic.id
+        combat_unit:ModifyAttribute("attack", combat_unit:GetBoundedAttribute("attack") * -0.9, false, false)
+        combat_unit:ModifyAttribute("energy_per_second", combat_unit:GetBoundedAttribute("energy_per_second") * -0.9, false, false)
+        local last_change = 0
+        combat_unit:RegisterOnSetAttributeCallback(name, function(level, attribute, old_value, new_value)
+            if (attribute == "attack" or attribute == "energy_per_second") and last_change ~= new_value then
+                new_value = old_value + ((new_value - old_value) * 0.1)
+                last_change = new_value
+                combat_unit:SetAttribute(attribute, new_value)
+            end
+        end)
+    end)
+    local soul_heart_multiplier = 5
+    local soul_heart_relic = {
+        id = "isaac_soul_heart",
+        display_name = localization_table["relic/soul_heart/display_name"],
+        description = ReplaceTextMarks(localization_table["relic/soul_heart/description"], {
+          x = soul_heart_multiplier,
+          y = Api.GameMechanicTags.TAG.health,
+        }),
+        flavor_text = localization_table["relic/soul_heart/flavor"],
+        icon = DCEI.Texture("soul_heart"),
+        rarity = "legendary",
+    }
+    Api:RegisterRelic(soul_heart_relic.id, soul_heart_relic, function(combat_unit)
+        local name = soul_heart_relic.id
+        combat_unit:ModifyAttribute("health_maximum", combat_unit:GetBoundedAttribute("health_maximum") * soul_heart_multiplier, false, false)
+        local last_health_maximum = 0
+        combat_unit:RegisterOnSetAttributeCallback(name, function(level, attribute, old_value, new_value)
+            if attribute == "health_maximum" and last_health_maximum ~= new_value then
+              new_value = old_value + ((new_value - old_value) * soul_heart_multiplier * level)
+              last_health_maximum = new_value
+              combat_unit:SetAttribute(attribute, new_value)
+            end
+        end)
+        combat_unit:RegisterOnBeforeCombatStartCallback(name, function(level)
+          if is_first_combat then
+            last_current_health = combat_unit:GetMaximumHealth()
+            is_first_combat = false
+          end
+          Api:Log("Start: " .. last_current_health)
+          combat_unit:SetCurrentHealth(last_current_health)
+        end)
+        combat_unit:RegisterOnCombatEndCallback(name, function(level)
+            last_current_health = combat_unit:GetCurrentHealth()
+            Api:Log("End: " .. last_current_health)
+        end)
+    end)
+end
+
+local function AddBlueBaby(Api)
+    Api:CopyCharacter("naysayer", {
+        id = "blue_baby_character",
+        display_name = "Blue Baby",
+        short_description = "???",
+        icon = DCEI.Texture("blue_baby_txt"),
+        icon_low_resolution = DCEI.Texture("blue_baby_txt"),
+        icon_high_resolution = DCEI.Texture("blue_baby_txt"),
+        unit = DCEI.Unit("COMBAT Unit Blue Baby"),
+        attack_ids = {
+          "attack_poo",
+          "attack_poo",
+          "attack_poo",
+          "attack_poo",
+          "attack_poo",
+          "poo_cupcake",
+          "poo_cupcake",
+          "poo_cupcake",
+        },
+        perk_chains = {
+          {
+            "poo_cupcake_perk",
+            "poo_cake",
+            "poo_party",
+            "attack_poo",
+            "attack_lifesteal",
+            "super_lifesteal",
+            "bonus_lifesteal",
+            "minus_attack_poo",
+            "flex_on_poo",
+            "bonus_poo",
+            "poison_poo",
+            "poison_ultimate",
+            "health_regen",
+            "emergency_heal",
+            "health_regen_percentage",
+            "spiky_armor",
+            "bonus_health",
+            "health_maximum_quest",
+            "health_to_damage",
+            "energy_regen",
+            "emergency_energy_regen",
+            "ultimate_power",
+            "ultimate_quest",
+            "gain_income",
+            "shop_quest",
+            "money",
+            "money_on_damage_quest",
+            "spend_for_income",
+            "income_to_health",
+            "interest",
+            "dodge",
+            "energy_on_dodge",
+            "attack_speed",
+            "rush_speed_buff",
+            "speed_luck",
+            "stun_on_start",
+            "emergency_attack_speed",
+            "emergency_block",
+            "rush_block_buff",
+            "emergency_dodge",
+            "damage_to_health",
+          }
+        },
+        relics = {
+          "blessing_of_nurgle",
+          "curry_poo",
+          "isaac_poo_poison_relic",
+
+          "perk_reroll_token",
+          "perk_reroll_token",
+          "perk_reroll_token",
+        }
+    })
+end
+
+local function Loader(Api)
+    AddNewAttribute(Api)
+    AddNewMissile(Api)
+    AddNewPerk(Api)
+    AddNewRelic(Api)
+    AddBlueBaby(Api)
+end
+
+MOD_MANAGER:AddMod(Loader)
