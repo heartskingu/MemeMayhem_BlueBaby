@@ -8,10 +8,10 @@ local localization = {
     ["missile/big_vampire/tip"] = "Steal <color=green>{[x]}</color> health",
     ["missile/poo_cupcake/tip"] = "Target self\nGain <color=green>+{[x]}</color> health regeneration",
     ["relic/black_heart/display_name"] = "Black Heart",
-    ["relic/black_heart/description"] = "Every <color=red>600</color> damage taken: Deal <color=green>400</color> damage to the enemy",
+    ["relic/black_heart/description"] = "After taking <color=red>{[x]}</color> damage\nDeal <color=green>{[y]}</color> damage to the enemy",
     ["relic/black_heart/flavor"] = "Evil Up",
     ["relic/soy_milk/display_name"] = "Soy Milk",
-    ["relic/soy_milk/description"] = "Gain <color=green>300%</color> {[x]}\n{[y]} and {[z]} reduced by <color=red>90%</color>",
+    ["relic/soy_milk/description"] = "Gain <color=green>{[speed_amount]}%</color> {[x]}\n{[y]} and {[z]} reduced by <color=red>{[debuff_amount]}%</color>",
     ["relic/soy_milk/flavor"] = "Lactose intolerance?",
     ["relic/soul_heart/display_name"] = "Soul Heart",
     ["relic/soul_heart/description"] = "Increase {[y]} by {[x]} times, but lose after battle regen",
@@ -48,11 +48,12 @@ local function AddNewAttribute(Api)
 end
 
 local function AddNewMissile(Api)
+    local poo_cupcake_heal_amount = 1
     Api:RegisterMissile("poo_cupcake", {
         id = "poo_cupcake",
         display_name = "Poo Cupcake",
         tip = ReplaceTextMarks(localization_table["missile/poo_cupcake/tip"], {
-            x = 1,
+            x = poo_cupcake_heal_amount,
         }),
         icon = DCEI.Texture("poo_cupcake"),
         missile = DCEI.SimpleUnit("COMBAT Missile Poo Cupcake"),
@@ -61,10 +62,14 @@ local function AddNewMissile(Api)
     })
 
     Api:SetMissileImpact("poo_cupcake", function(attack_data, caster_data, target_data)
-        local heal_amount = 1 + caster_data:GetBoundedAttribute("attr_poo_cake_bonus")
+        local heal_amount = poo_cupcake_heal_amount + caster_data:GetBoundedAttribute("attr_poo_cake_bonus")
         target_data:ModifyAttribute("health_per_second", heal_amount, false)
     end)
-    --[[Api:RegisterMissile("big_vampire", {
+    
+    --[[
+    Example of how to implent a Vampire like missile (added to help with discord questions)
+    
+    Api:RegisterMissile("big_vampire", {
         id = "big_vampire",
         display_name = "Big Vampire",
         tip = ReplaceTextMarks(localization_table["missile/big_vampire/tip"], {
@@ -78,7 +83,8 @@ local function AddNewMissile(Api)
         caster_data:ModifyAttribute("health_maximum", 10, false)
         target_data:ModifyAttribute("health_maximum", -10, false)
         caster_data.run_instance:ModifySavedPerkDataAttributes("health_maximum", 10)
-    end)]]--
+    end)
+    ]]--
 end
 
 local function AddNewPerk(Api)
@@ -106,24 +112,30 @@ local function AddNewPerk(Api)
         },
     })
 
+    local increase_poo_cupcake_heal_by = 1
     Api:RegisterPerk("poo_cake", {
         id = "poo_cake",
         display_name = "Poo Cake!",
-        description = "Increase " .. TAG_POO_CUPCAKE .. " heal by <color=#47B05D>1</color>",
+        description = "Increase " .. TAG_POO_CUPCAKE .. " heal by <color=#47B05D>" .. increase_poo_cupcake_heal_by .. "</color>",
         icon = DCEI.Texture("poo_cake"),
         perk_type = "perk",
         rarity = "epic",
         modify_attributes = {
-            attr_poo_cake_bonus = 1,
+            attr_poo_cake_bonus = increase_poo_cupcake_heal_by,
         },
     })
 end
 
 local function AddNewRelic(Api)
+    local black_heart_damage = 400
+    local black_heart_trigger = 600
     local black_heart_relic = {
         id = "black_heart",
         display_name = localization_table["relic/black_heart/display_name"],
-        description = localization_table["relic/black_heart/description"],
+        description = ReplaceTextMarks(localization_table["relic/black_heart/description"], {
+            x = black_heart_trigger,
+            y = black_heart_damage,
+        }),
         flavor_text = localization_table["relic/black_heart/flavor"],
         icon = DCEI.Texture("black_heart"),
         rarity = "epic",
@@ -131,8 +143,8 @@ local function AddNewRelic(Api)
     Api:RegisterRelic(black_heart_relic.id, black_heart_relic, function(combat_unit)
         local name = black_heart_relic.id
         local damage_taken = 0
-        local damage_cap = 600
-        local deal_damage_amount = 400
+        local damage_cap = black_heart_trigger
+        local deal_damage_amount = black_heart_damage
         combat_unit:RegisterOnDamageTakenCallback(name, function(level, damage_amount, caster, target)
             damage_taken = damage_taken + damage_amount
             if damage_taken >= damage_cap then
@@ -144,11 +156,12 @@ local function AddNewRelic(Api)
         end)
     end)
 
+    local apply_poo_poison_amount = 1
     local poo_poison_relic = {
         id = "isaac_poo_poison_relic",
         display_name = localization_table["relic/poo_poison_relic/display_name"],
         description = ReplaceTextMarks(localization_table["relic/poo_poison_relic/description"], {
-            x = 1,
+            x = apply_poo_poison_amount,
             y = Api.GameMechanicTags.TAG.poison,
             z = Api.GameMechanicTags.ATTACK_ICON.poo,
         }),
@@ -161,15 +174,19 @@ local function AddNewRelic(Api)
         
         combat_unit.Attack:RegisterOnMissileImpactCallback(name, function(level, attack_data, caster, target)
             if not target:IsHero() and attack_data.missile_id == "attack_poo" then
-                Api.PerkMechanics:ApplyPoison(caster, target, 1)
+                Api.PerkMechanics:ApplyPoison(caster, target, apply_poo_poison_amount)
             end
         end)
     end)
 
+    local attack_speed_increase = 3
+    local debuff_decrease = 0.9
     local soy_milk_relic = {
         id = "soy_milk",
         display_name = localization_table["relic/soy_milk/display_name"],
         description = ReplaceTextMarks(localization_table["relic/soy_milk/description"], {
+          speed_amount = attack_speed_increase * 100,
+          debuff_amount = debuff_decrease * 100,
           x = Api.GameMechanicTags.TAG.attack_speed,
           y = Api.GameMechanicTags.TAG.attack,
           z = Api.GameMechanicTags.TAG.energy_regen
@@ -178,22 +195,23 @@ local function AddNewRelic(Api)
         icon = DCEI.Texture("soy_milk"),
         rarity = "legendary",
         modify_attributes = {
-            attack_speed = 3
+            attack_speed = attack_speed_increase
         }
     }
     Api:RegisterRelic(soy_milk_relic.id, soy_milk_relic, function(combat_unit)
         local name = soy_milk_relic.id
-        combat_unit:ModifyAttribute("attack", combat_unit:GetBoundedAttribute("attack") * -0.9, false, false)
-        combat_unit:ModifyAttribute("energy_per_second", combat_unit:GetBoundedAttribute("energy_per_second") * -0.9, false, false)
+        combat_unit:ModifyAttribute("attack", combat_unit:GetBoundedAttribute("attack") * -debuff_decrease, false, false)
+        combat_unit:ModifyAttribute("energy_per_second", combat_unit:GetBoundedAttribute("energy_per_second") * -debuff_decrease, false, false)
         local last_change = 0
         combat_unit:RegisterOnSetAttributeCallback(name, function(level, attribute, old_value, new_value)
             if (attribute == "attack" or attribute == "energy_per_second") and last_change ~= new_value then
-                new_value = old_value + ((new_value - old_value) * 0.1)
+                new_value = old_value + ((new_value - old_value) * (1 - debuff_decrease))
                 last_change = new_value
                 combat_unit:SetAttribute(attribute, new_value)
             end
         end)
     end)
+
     local soul_heart_multiplier = 5
     local soul_heart_relic = {
         id = "isaac_soul_heart",
