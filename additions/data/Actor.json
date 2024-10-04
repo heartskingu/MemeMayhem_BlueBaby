@@ -18,6 +18,15 @@
               "modelScale": 0.4
           }
       },
+      "COMBAT Missile Moms Knife": {
+          "parent": "_COMBAT Missile Simple",
+          "unitActor": {
+              "resource": {
+                  "name": "moms_knife"
+              },
+              "modelScale": 1
+          }
+      },
       "COMBAT Missile Big Vampire": {
           "parent": "_COMBAT Missile Simple",
           "unitActor": {

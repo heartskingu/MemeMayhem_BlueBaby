@@ -2,6 +2,8 @@ is_first_combat = true
 last_current_health = 0
 
 local TAG_POO_CUPCAKE = "<size=280%><sprite name=poo_cupcake></size>"
+local TAG_MOMS_KNIFE = "<size=280%><sprite name=moms_knife></size>"
+local TAG_BLACK_HEART = "<size=280%><sprite name=black_heart></size>"
 
 local localization = {
   ["English"] = {
@@ -19,6 +21,10 @@ local localization = {
     ["relic/poo_poison_relic/display_name"] = "Poo Poison",
     ["relic/poo_poison_relic/description"] = "{[z]} applies <color=green>{[x]}</color> {[y]}\nEvery {[y]} decreases <color=green>1</color> health and <color=green>1</color> energy per second",
     ["relic/poo_poison_relic/flavor"] = "Isn't it tasty?",
+    ["missile/moms_knife/tip"]="Deal <color=green>{[x]}</color> * {[y]} damage",
+    ["relic/moms_knife/display_name"] = "Mom's Knife",
+    ["relic/moms_knife/description"] = "Gain <color=green>1</color> {[x]}",
+    ["relic/moms_knife/flavor"] = "Stab Stab Stab",
   }
 }
 
@@ -64,6 +70,23 @@ local function AddNewMissile(Api)
     Api:SetMissileImpact("poo_cupcake", function(attack_data, caster_data, target_data)
         local heal_amount = poo_cupcake_heal_amount + caster_data:GetBoundedAttribute("attr_poo_cake_bonus")
         target_data:ModifyAttribute("health_per_second", heal_amount, false)
+    end)
+
+    local moms_knife_damage_multiplier = 10
+    Api:RegisterMissile("moms_knife", {
+        id = "moms_knife",
+        display_name = "Mom's Knife",
+        tip = ReplaceTextMarks(localization_table["missile/moms_knife/tip"], {
+            x = moms_knife_damage_multiplier,
+            y = Api.GameMechanicTags.TAG.attack,
+        }),
+        icon = DCEI.Texture("moms_knife"),
+        missile = DCEI.SimpleUnit("COMBAT Missile Moms Knife"),
+        flight_time = 0.75,
+    })
+
+    Api:SetMissileDamage("moms_knife", function(attack_data, caster)
+        return moms_knife_damage_multiplier * caster:GetBoundedAttribute("attack")
     end)
     
     --[[
@@ -248,6 +271,74 @@ local function AddNewRelic(Api)
             Api:Log("End: " .. last_current_health)
         end)
     end)
+
+    local moms_knife_relic = {
+        id = "moms_knife_relic",
+        display_name = localization_table["relic/moms_knife/display_name"],
+        description = "Get 1" .. TAG_MOMS_KNIFE,
+        flavor_text = localization_table["relic/moms_knife/flavor"],
+        icon = DCEI.Texture("moms_knife"),
+        rarity = "permanent",
+    }
+    Api:RegisterRelic(moms_knife_relic.id, moms_knife_relic, function(combat_unit)
+        combat_unit.Attack:AddEmojiToDeck("moms_knife", 1)
+    end)
+end
+
+local function AddNewChoice(Api)
+    local moms_knife_cost = 800
+    local black_heart_cost = 500
+    Api:RegisterChoice({
+        id = "devil_room_choice",
+        display_name = "Devil Room",
+        image = DCEI.Texture("devil-room-event"),
+        description = "You enter a dark room with a strange figure. You see relics on the floor for sale, but there is no price tag...",
+        options = {
+            {
+                flavor = "A knife to hurt my enemies",
+                description = "Gain <color=#47B05D>1</color> " .. TAG_MOMS_KNIFE .. " Mom's Knife, but lose <color=red>" .. moms_knife_cost .. "</color> " .. Api.GameMechanicTags.TAG.health,
+                aftermath_narrative = "Let's go on a killing spree",
+                aftermath_description = "The stranger gives you a creepy smile... You feel like you might see each other again soon",
+                modify_attributes = {
+                    health_maximum = -moms_knife_cost,
+                },
+                description_replacement_values = {
+                    {
+                        address = { "gain_relics", "moms_knife_relic" },
+                    },
+                    {
+                        address = { "modify_attributes", "health_maximum" },
+                    },
+                },
+                gain_relics = {
+                    moms_knife_relic = 1,
+                },
+            },
+            {
+                flavor = "A dark heart to replace mine",
+                description = "Gain <color=#47B05D>1</color> " .. TAG_BLACK_HEART .. " Black Heart, but lose <color=red>" .. black_heart_cost .. "</color> " .. Api.GameMechanicTags.TAG.health,
+                aftermath_narrative = "They've hurt me, so I'll hurt them back",
+                aftermath_description = "The stranger gives you a creepy smile... You feel like you might see each other again soon",
+                modify_attributes = {
+                    health_maximum = -black_heart_cost,
+                },
+                description_replacement_values = {
+                    {
+                        address = { "gain_relics", "black_heart" },
+                    },
+                    {
+                        address = { "modify_attributes", "health_maximum" },
+                    },
+                },
+                gain_relics = {
+                    black_heart = 1,
+                },
+            },
+        },
+    })
+    Api:SetChoicePool("blue_baby_character", {
+        "devil_room_choice",
+    })
 end
 
 local function AddBlueBaby(Api)
@@ -268,6 +359,7 @@ local function AddBlueBaby(Api)
           "poo_cupcake",
           "poo_cupcake",
           "poo_cupcake",
+          "moms_knife",
         },
         perk_chains = {
           {
@@ -332,6 +424,7 @@ local function Loader(Api)
     AddNewPerk(Api)
     AddNewRelic(Api)
     AddBlueBaby(Api)
+    AddNewChoice(Api)
 end
 
 MOD_MANAGER:AddMod(Loader)
