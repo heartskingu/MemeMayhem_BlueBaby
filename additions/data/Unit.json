@@ -12,6 +12,9 @@
       },
       "COMBAT Missile Big Vampire": {
           "baseUnit": "_COMBAT Missile"
+      },
+      "COMBAT Missile Blue Fly": {
+          "baseUnit": "_COMBAT Missile"
       }
   }
 }

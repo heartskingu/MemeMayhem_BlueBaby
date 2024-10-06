@@ -35,6 +35,15 @@
               },
               "modelScale": 0.2
           }
+      },
+      "COMBAT Missile Blue Fly": {
+          "parent": "_COMBAT Missile Simple",
+          "unitActor": {
+              "resource": {
+                  "name": "blue_fly"
+              },
+              "modelScale": 1.4
+          }
       }
   }
 }

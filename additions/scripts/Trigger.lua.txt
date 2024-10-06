@@ -4,6 +4,7 @@ last_current_health = 0
 local TAG_POO_CUPCAKE = "<size=280%><sprite name=poo_cupcake></size>"
 local TAG_MOMS_KNIFE = "<size=280%><sprite name=moms_knife></size>"
 local TAG_BLACK_HEART = "<size=280%><sprite name=black_heart></size>"
+local TAG_BLUE_FLY = "<size=280%><sprite name=blue_fly></size>"
 
 local localization = {
   ["English"] = {
@@ -25,6 +26,7 @@ local localization = {
     ["relic/moms_knife/display_name"] = "Mom's Knife",
     ["relic/moms_knife/description"] = "Gain <color=green>1</color> {[x]}",
     ["relic/moms_knife/flavor"] = "Stab Stab Stab",
+    ["missile/blue_fly/tip"]="Deal <color=green>{[x]}</color> * {[y]} damage",
   }
 }
 
@@ -72,12 +74,12 @@ local function AddNewMissile(Api)
         target_data:ModifyAttribute("health_per_second", heal_amount, false)
     end)
 
-    local moms_knife_damage_multiplier = 10
+    local moms_knife_multiplier = 10
     Api:RegisterMissile("moms_knife", {
         id = "moms_knife",
         display_name = "Mom's Knife",
         tip = ReplaceTextMarks(localization_table["missile/moms_knife/tip"], {
-            x = moms_knife_damage_multiplier,
+            x = moms_knife_multiplier,
             y = Api.GameMechanicTags.TAG.attack,
         }),
         icon = DCEI.Texture("moms_knife"),
@@ -86,7 +88,24 @@ local function AddNewMissile(Api)
     })
 
     Api:SetMissileDamage("moms_knife", function(attack_data, caster)
-        return moms_knife_damage_multiplier * caster:GetBoundedAttribute("attack")
+        return moms_knife_multiplier * caster:GetBoundedAttribute("attack")
+    end)
+
+    local blue_fly_multiplier = 2
+    Api:RegisterMissile("blue_fly", {
+        id = "blue_fly",
+        display_name = "Blue fly",
+        tip = ReplaceTextMarks(localization_table["missile/blue_fly/tip"], {
+            x = blue_fly_multiplier,
+            y = Api.GameMechanicTags.TAG.attack,
+        }),
+        icon = DCEI.Texture("blue_fly"),
+        missile = DCEI.SimpleUnit("COMBAT Missile Blue Fly"),
+        flight_time = 0.75,
+    })
+
+    Api:SetMissileDamage("blue_fly", function(attack_data, caster)
+        return blue_fly_multiplier * caster:GetBoundedAttribute("attack")
     end)
     
     --[[
@@ -147,6 +166,27 @@ local function AddNewPerk(Api)
             attr_poo_cake_bonus = increase_poo_cupcake_heal_by,
         },
     })
+
+    local infestation_odds = 0.025
+    local infestation_spawn_count = 3
+    Api:RegisterPerk("infestation", {
+        id = "infestation",
+        display_name = "Infestation",
+        description = "<color=#47B05D>+" .. infestation_odds * 100 .. "%</color> chance to launch <color=#47B05D>" .. infestation_spawn_count .. "</color>" .. TAG_BLUE_FLY .. " when getting hit",
+        icon = DCEI.Texture("infestation"),
+        perk_type = "perk",
+        rarity = "rare",
+    }, function(combat_unit)
+        local name = "infestation"
+        combat_unit:RegisterOnDamageTakenCallback(name, function(level, damage_amount, attacker, defender)
+            local odd = math.random()
+            if odd <= (infestation_odds * level) then
+                combat_unit.Attack:NewMissileAttack(attacker, "blue_fly")
+                combat_unit.Attack:NewMissileAttack(attacker, "blue_fly")
+                combat_unit.Attack:NewMissileAttack(attacker, "blue_fly")
+            end
+        end)
+    end)
 end
 
 local function AddNewRelic(Api)
@@ -295,6 +335,12 @@ local function AddNewChoice(Api)
         description = "You enter a dark room with a strange figure. You see relics on the floor for sale, but there is no price tag...",
         options = {
             {
+                flavor = "Walk away",
+                description = "Do nothing",
+                aftermath_narrative = "No thank you",
+                aftermath_description = "Your life is too precious",
+            },
+            {
                 flavor = "A knife to hurt my enemies",
                 description = "Gain <color=#47B05D>1</color> " .. TAG_MOMS_KNIFE .. " Mom's Knife, but lose <color=red>" .. moms_knife_cost .. "</color> " .. Api.GameMechanicTags.TAG.health,
                 aftermath_narrative = "Let's go on a killing spree",
@@ -359,10 +405,10 @@ local function AddBlueBaby(Api)
           "poo_cupcake",
           "poo_cupcake",
           "poo_cupcake",
-          "moms_knife",
         },
         perk_chains = {
           {
+            "infestation",
             "poo_cupcake_perk",
             "poo_cake",
             "poo_party",
