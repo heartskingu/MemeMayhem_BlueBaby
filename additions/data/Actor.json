@@ -44,6 +44,15 @@
               },
               "modelScale": 1.4
           }
+      },
+      "COMBAT Missile Blue Flame": {
+          "parent": "_COMBAT Missile Simple",
+          "unitActor": {
+              "resource": {
+                  "name": "blue_flame"
+              },
+              "modelScale": 0.2
+          }
       }
   }
 }

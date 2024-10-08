@@ -15,6 +15,9 @@
       },
       "COMBAT Missile Blue Fly": {
           "baseUnit": "_COMBAT Missile"
+      },
+      "COMBAT Missile Blue Flame": {
+          "baseUnit": "_COMBAT Missile"
       }
   }
 }

@@ -1,10 +1,16 @@
 is_first_combat = true
 last_current_health = 0
+blue_flame_burn = 1
+blue_flame_burn_cap = 20
 
 local TAG_POO_CUPCAKE = "<size=280%><sprite name=poo_cupcake></size>"
 local TAG_MOMS_KNIFE = "<size=280%><sprite name=moms_knife></size>"
 local TAG_BLACK_HEART = "<size=280%><sprite name=black_heart></size>"
 local TAG_BLUE_FLY = "<size=280%><sprite name=blue_fly></size>"
+local TAG_URN_OF_SOULS = "<size=280%><sprite name=urn_of_souls></size>"
+local TAG_trininty_SHIELD = "<size=280%><sprite name=trininty_shield></size>"
+local TAG_SOUL_HEART = "<size=280%><sprite name=soul_heart></size>"
+local TAG_BLUE_FLAME = "<size=244%><sprite name=blue_flame></size>"
 
 local localization = {
   ["English"] = {
@@ -27,6 +33,13 @@ local localization = {
     ["relic/moms_knife/description"] = "Gain <color=green>1</color> {[x]}",
     ["relic/moms_knife/flavor"] = "Stab Stab Stab",
     ["missile/blue_fly/tip"]="Deal <color=green>{[x]}</color> * {[y]} damage",
+    ["missile/blue_flame/tip"]="Applies <color=green>{[x]}</color> {[y]} Blue Flame on hit",
+    ["relic/urn_of_souls/display_name"] = "Urn of Souls",
+    ["relic/urn_of_souls/description"] = "Gain a temporary {[x]} blue flame at start of combat\nAfter beating a wave, increase the number of flames by <color=green>{[y]}</color>",
+    ["relic/urn_of_souls/flavor"] = "Unleash their sorrow",
+    ["relic/trininty_shield/display_name"] = "Trininty Shield",
+    ["relic/trininty_shield/description"] = "Gain <color=green>{[armor_amount]}</color>{[x]} and <color=green>{[thorn_block_amount]}</color>{[y]}",
+    ["relic/trininty_shield/flavor"] = "You feel guarded",
   }
 }
 
@@ -41,15 +54,40 @@ end
   
 local function AddNewAttribute(Api)
       Api:RegisterAttribute({
-          id = "attr_poo_cake_bonus",
-          display_name = "Poo Cake Bonus",
-          description = "Increase Poo Cupcake healing",
-          icon = DCEI.Texture("poo_cake"),
-          display_type = Api.DisplayType.Integer,
-          is_neutral = true, -- if true, font color will always be white
-          display_requirements = {
-              is_hero = true, -- only show for hero
-              perk = "poo_cake", -- only show if has this perk
+        id = "attr_poo_cake_bonus",
+        display_name = "Poo Cake Bonus",
+        description = "Increase Poo Cupcake healing",
+        icon = DCEI.Texture("poo_cake"),
+        display_type = Api.DisplayType.Integer,
+        is_neutral = true, -- if true, font color will always be white
+        display_requirements = {
+            perk = "poo_cake", -- only show if has this perk
+            default_value = 0,
+        },
+    })
+
+    Api:RegisterAttribute({
+        id = "attr_blue_burn",
+        display_name = "Burn",
+        description = "Deals <color=green>" .. blue_flame_burn .. "</color> damage per stack on " .. TAG_BLUE_FLAME .. " Blue Flame hit",
+        icon = DCEI.Texture("blue_flame"),
+        display_type = Api.DisplayType.Integer,
+        is_negative = true,
+        display_requirements = {
+            default_value = 0,
+            max = blue_flame_burn_cap
+        },
+    })
+
+    Api:RegisterAttribute({
+        id = "attr_urn_of_souls",
+        display_name = "Trapped Souls",
+        description = "Creates " .. TAG_BLUE_FLAME .. " before wave starts",
+        icon = DCEI.Texture("urn_of_souls"),
+        display_type = Api.DisplayType.Integer,
+        is_neutral = true,
+        display_requirements = {
+            perk = "urn_of_souls",
             default_value = 0,
         },
     })
@@ -74,7 +112,7 @@ local function AddNewMissile(Api)
         target_data:ModifyAttribute("health_per_second", heal_amount, false)
     end)
 
-    local moms_knife_multiplier = 10
+    local moms_knife_multiplier = 5
     Api:RegisterMissile("moms_knife", {
         id = "moms_knife",
         display_name = "Mom's Knife",
@@ -106,6 +144,28 @@ local function AddNewMissile(Api)
 
     Api:SetMissileDamage("blue_fly", function(attack_data, caster)
         return blue_fly_multiplier * caster:GetBoundedAttribute("attack")
+    end)
+
+    Api:RegisterMissile("blue_flame", {
+        id = "blue_flame",
+        display_name = "Blue flame",
+        tip = "Applies <color=green>1</color>" .. TAG_BLUE_FLAME .. "Blue Flame on hit",
+        icon = DCEI.Texture("blue_flame"),
+        missile = DCEI.SimpleUnit("COMBAT Missile Blue Flame"),
+        flight_time = 0.75,
+    })
+    Api:SetMissileImpact("blue_flame", function(attack_data, caster_data, target_data)
+        target_data:Damage(target_data:GetBoundedAttribute("attr_blue_burn") * blue_flame_burn, target_data, {
+            show_duration = 0.25 * 1.5,
+            anim_duration = 0.75 * 1.5,
+            color = "<color=red>",
+            size = "<size=100%>",
+            center_at_unit = true,
+        })
+        
+        if (target_data:GetBoundedAttribute("attr_blue_burn") < blue_flame_burn_cap) then
+            target_data:ModifyAttribute("attr_blue_burn", 1)
+        end
     end)
     
     --[[
@@ -167,12 +227,12 @@ local function AddNewPerk(Api)
         },
     })
 
-    local infestation_odds = 0.025
+    local infestation_odds = 0.1
     local infestation_spawn_count = 3
     Api:RegisterPerk("infestation", {
         id = "infestation",
         display_name = "Infestation",
-        description = "<color=#47B05D>+" .. infestation_odds * 100 .. "%</color> chance to launch <color=#47B05D>" .. infestation_spawn_count .. "</color>" .. TAG_BLUE_FLY .. " when getting hit",
+        description = "<color=#47B05D>+10%</color> chance to launch <color=#47B05D>" .. infestation_spawn_count .. "</color>" .. TAG_BLUE_FLY .. " when getting hit",
         icon = DCEI.Texture("infestation"),
         perk_type = "perk",
         rarity = "rare",
@@ -308,7 +368,6 @@ local function AddNewRelic(Api)
         end)
         combat_unit:RegisterOnCombatEndCallback(name, function(level)
             last_current_health = combat_unit:GetCurrentHealth()
-            Api:Log("End: " .. last_current_health)
         end)
     end)
 
@@ -322,6 +381,45 @@ local function AddNewRelic(Api)
     }
     Api:RegisterRelic(moms_knife_relic.id, moms_knife_relic, function(combat_unit)
         combat_unit.Attack:AddEmojiToDeck("moms_knife", 1)
+    end)
+
+    armor_increase = 25
+    thorn_block_increase = 0.5
+    local trininty_shield_relic = {
+        id = "trininty_shield",
+        display_name = localization_table["relic/trininty_shield/display_name"],
+        description = "Gain <color=green>" .. armor_increase .. "</color>" .. Api.GameMechanicTags.TAG.armor .. " and <color=green>" .. thorn_block_increase * 100 .. "%</color>" .. Api.GameMechanicTags.TAG.thorn_block,
+        flavor_text = localization_table["relic/trininty_shield/flavor"],
+        icon = DCEI.Texture("trininty_shield"),
+        rarity = "permanent",
+        modify_attributes = {
+            block = armor_increase,
+            thorn_block = thorn_block_increase,
+        }
+    }
+    Api:RegisterRelic(trininty_shield_relic.id, trininty_shield_relic)
+
+    local urn_of_souls_increase = 1
+    local urn_of_souls_relic = {
+        id = "urn_of_souls",
+        display_name = localization_table["relic/urn_of_souls/display_name"],
+        description = "Gain a temporary " .. TAG_BLUE_FLAME .. " at start of combat\nAfter beating a wave, increase the number of " .. TAG_BLUE_FLAME .. " by <color=green>1</color>",
+        flavor_text = localization_table["relic/urn_of_souls/flavor"],
+        icon = DCEI.Texture("urn_of_souls"),
+        rarity = "permanent",
+    }
+    Api:RegisterRelic(urn_of_souls_relic.id, urn_of_souls_relic, function(combat_unit)
+        combat_unit:ModifyAttribute("attr_urn_of_souls", 1)
+
+        combat_unit:RegisterOnBeforeCombatStartCallback(urn_of_souls_relic.id, function(level)
+            local blue_flame_qty = combat_unit:GetBoundedAttribute("attr_urn_of_souls")
+            combat_unit.Attack:AddEmojiToDeck("blue_flame", blue_flame_qty)
+            combat_unit:PlayAwardEmojiAnimation("blue_flame", blue_flame_qty)
+        end)
+
+        combat_unit:RegisterOnCombatEndCallback(urn_of_souls_relic.id, function(level)
+            combat_unit.run_instance:ModifySavedPerkDataAttributes("attr_urn_of_souls", level)
+        end)
     end)
 end
 
@@ -382,8 +480,78 @@ local function AddNewChoice(Api)
             },
         },
     })
+    
+    Api:RegisterChoice({
+        id = "angel_room_choice",
+        display_name = "Angel Room",
+        image = DCEI.Texture("angel-room-event"),
+        description = "You enter a bright room with an angelic figure. You see relics on the floor as an offering for fighting evil",
+        options = {
+            {
+                flavor = "A porcelain urn to convert\nmy enemies souls",
+                description = "Gain <color=#47B05D>1</color>" .. TAG_URN_OF_SOULS,
+                aftermath_narrative = "Unleash their sorrow",
+                aftermath_description = "Their wrath won't be used for evil anymore",
+                gain_relics = {
+                    urn_of_souls = 1,
+                },
+            },
+            {
+                flavor = "A shild to procted the weak",
+                description = "Gain <color=#47B05D>1</color>" .. TAG_trininty_SHIELD,
+                aftermath_narrative = "You feel guarded",
+                aftermath_description = "You shall feel no pain",
+                gain_relics = {
+                    trininty_shield = 1,
+                },
+            },
+            {
+                flavor = "A converted heart to erase\nmy sins",
+                description = "Gain <color=#47B05D>1</color> " .. TAG_SOUL_HEART,
+                aftermath_narrative = "Your life span expands",
+                aftermath_description = "You are pure now, keep it that way",
+                gain_relics = {
+                    isaac_soul_heart = 1,
+                },
+            },
+        },
+    })
+    
     Api:SetChoicePool("blue_baby_character", {
         "devil_room_choice",
+        "angel_room_choice",
+
+        "Lizardberg_event_1",
+        "Lizardberg_event_2",
+        "Lizardberg_event_3",
+        "Lump_event_1",
+
+        "test",
+        "rabbit_hole",
+        "trolley_problem_1",
+        "trolley_problem_2",
+
+        "only_fans",
+
+        "the_dress",
+        "brokenscreen",
+
+        "enlargement",
+        "wyr_curry",
+
+        "debate_slap",
+        "waifu",
+
+        "player_awards_interruption",
+
+        "fearful_disclose",
+        "change_underwear",
+        "clean_toilet",
+        "goto_god",
+
+        "what_tonight",
+        "breaking",
+        "self_feature",
     })
 end
 
